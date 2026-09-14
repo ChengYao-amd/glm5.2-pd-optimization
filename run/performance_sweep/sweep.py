@@ -83,47 +83,50 @@ def main():
     save_json(config_path, config)
     save_json(run / f"server-info-{args.label}.json", info)
 
-    # Patch a local copy: leave the installed SGLang benchmark untouched.
+    # Snapshot the client already patched by start_container.sh for reproducibility.
     source = Path(os.environ.get("SGLANG_DIR", "/sglang")) / "python/sglang/benchmark/serving.py"
     client = run / "bench_with_details.py"
     shutil.copyfile(source, client)
-    subprocess.run(["patch", "--batch", "--fuzz=0", str(client), str(HERE / "client_details.patch")], check=True)
-    for point, conc, repeat in points:
-        directory = run / "rounds" / point
-        directory.mkdir(parents=True)
-        n = max(args.min_requests, args.waves * conc)
-        n = (n + conc - 1) // conc * conc
-        warmup = max(16, conc)
-        # Cycle the original 160 prompts; native random/tokenize otherwise truncates large runs.
-        prompts = [{"conversations": [
-            {"from": "human", "value": f"Example {i % 160}. Describe an integer sequence and its next value."},
-            {"from": "gpt", "value": "The next value depends on the rule."}
-        ]} for i in range(max(160, n))]
-        save_json(directory / "prompts.json", prompts)
-        meta = {"point": point, "concurrency": conc, "repeat": repeat, "num_requests": n,
-                "warmup_requests": warmup, "input_len": isl, "output_len": osl}
-        save_json(directory / "run.json", meta)
-        command = [sys.executable, str(client),
-            "--backend", "sglang", "--host", "127.0.0.1", "--port", str(info["port"]),
-            "--model", info["model_path"], "--served-model-name", info["served_model_name"],
-            "--dataset-name", "random", "--dataset-path", str(directory / "prompts.json"),
-            "--tokenize-prompt", "--random-input-len", str(isl), "--random-output-len", str(osl),
-            "--random-range-ratio", "1", "--num-prompts", str(n),
-            "--max-concurrency", str(conc), "--warmup-requests", str(warmup),
-            "--fake-prefill", "--output-details", "--output-file", str(directory / "benchmark.jsonl")]
-        (directory / "command.txt").write_text(shlex.join(command) + "\n")
-        print(f"{point}: {n} measured + {warmup} warmup; log: {directory / 'benchmark.log'}", flush=True)
-        with (directory / "benchmark.log").open("w") as log:
-            subprocess.run(command, stdout=log, stderr=subprocess.STDOUT,
-                           check=True, timeout=args.benchmark_timeout)
-        data = json.loads((directory / "benchmark.jsonl").read_text())
-        row, requests = summarize(data, meta)
-        save_json(directory / "server-info-after.json", get(base, "/server_info"))
-        write_csv(directory / "requests.csv", requests)
-        save_json(directory / "metrics.json", row)
-        print(f"  output={row['output_tokens_s']:.2f} tok/s; "
-              f"TPOT P50/P90={row['tpot_ms_p50']:.3f}/{row['tpot_ms_p90']:.3f} ms", flush=True)
-    write_summary(run)
+    try:
+        for point, conc, repeat in points:
+            directory = run / "rounds" / point
+            directory.mkdir(parents=True)
+            n = max(args.min_requests, args.waves * conc)
+            n = (n + conc - 1) // conc * conc
+            warmup = max(16, conc)
+            # Cycle the original 160 prompts; native random/tokenize otherwise truncates large runs.
+            prompts = [{"conversations": [
+                {"from": "human", "value": f"Example {i % 160}. Describe an integer sequence and its next value."},
+                {"from": "gpt", "value": "The next value depends on the rule."}
+            ]} for i in range(max(160, n))]
+            save_json(directory / "prompts.json", prompts)
+            meta = {"point": point, "concurrency": conc, "repeat": repeat, "num_requests": n,
+                    "warmup_requests": warmup, "input_len": isl, "output_len": osl}
+            save_json(directory / "run.json", meta)
+            command = [sys.executable, str(client),
+                "--backend", "sglang", "--host", "127.0.0.1", "--port", str(info["port"]),
+                "--model", info["model_path"], "--served-model-name", info["served_model_name"],
+                "--dataset-name", "random", "--dataset-path", str(directory / "prompts.json"),
+                "--tokenize-prompt", "--random-input-len", str(isl), "--random-output-len", str(osl),
+                "--random-range-ratio", "1", "--num-prompts", str(n),
+                "--max-concurrency", str(conc), "--warmup-requests", str(warmup),
+                "--fake-prefill", "--output-details", "--output-file", str(directory / "benchmark.jsonl")]
+            (directory / "command.txt").write_text(shlex.join(command) + "\n")
+            print(f"{point}: {n} measured + {warmup} warmup; log: {directory / 'benchmark.log'}", flush=True)
+            with (directory / "benchmark.log").open("w") as log:
+                subprocess.run(command, stdout=log, stderr=subprocess.STDOUT,
+                               check=True, timeout=args.benchmark_timeout)
+            data = json.loads((directory / "benchmark.jsonl").read_text())
+            row, requests = summarize(data, meta)
+            save_json(directory / "server-info-after.json", get(base, "/server_info"))
+            write_csv(directory / "requests.csv", requests)
+            save_json(directory / "metrics.json", row)
+            print(f"  output={row['output_tokens_s']:.2f} tok/s; "
+                  f"TPOT P50/P90={row['tpot_ms_p50']:.3f}/{row['tpot_ms_p90']:.3f} ms", flush=True)
+    finally:
+        # Refresh decisions even when a new or appended round fails.
+        if any(run.glob("rounds/*/run.json")):
+            write_summary(run)
 
 
 if __name__ == "__main__":

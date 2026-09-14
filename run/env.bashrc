@@ -1,5 +1,7 @@
 # Shared defaults; override with VAR=value before invoking a script.
 RUN_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+export EXP="${EXP:-default}"
+export WORKSPACE_DIR="${WORKSPACE_DIR:-$(cd "$RUN_DIR/.." && pwd)/workspace/$EXP}"
 export MODEL_PATH="${MODEL_PATH:-/shared_nfs/models/GLM-5.2-MXFP4}"
 export SGLANG_DIR="${SGLANG_DIR:-/sglang}"
 export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0,1,2,3}"
@@ -12,13 +14,16 @@ export ACC_LEN="${ACC_LEN:-3.61}"
 export ISL="${ISL:-10000}" OSL="${OSL:-500}"
 export NUM_PROMPTS="${NUM_PROMPTS:-128}" WARMUP_REQUESTS="${WARMUP_REQUESTS:-16}"
 export PROFILE_STEPS="${PROFILE_STEPS:-12}"
-export RESULTS_DIR="${RESULTS_DIR:-$RUN_DIR/run_profiles/results}"
+export RESULTS_DIR="${RESULTS_DIR:-$WORKSPACE_DIR/run_profiles}"
 
-# Container-local compilation caches.
-export AITER_JIT_DIR="${AITER_JIT_DIR:-/tmp/glm52-cache/aiter}"
-export TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-/tmp/glm52-cache/triton}"
-export TORCHINDUCTOR_CACHE_DIR="${TORCHINDUCTOR_CACHE_DIR:-/tmp/glm52-cache/torch}"
-export HF_HOME="${HF_HOME:-/tmp/glm52-cache/hf}"
+# Keep intermediate files with the experiment; use separate workspaces per node.
+# ROCm's runtime temporary files must be on a local filesystem, not NFS.
+export TMPDIR="${TMPDIR:-/tmp}"
+export AITER_JIT_DIR="${AITER_JIT_DIR:-$WORKSPACE_DIR/cache/aiter}"
+export TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-$WORKSPACE_DIR/cache/triton}"
+export TORCHINDUCTOR_CACHE_DIR="${TORCHINDUCTOR_CACHE_DIR:-$WORKSPACE_DIR/cache/torch}"
+export HF_HOME="${HF_HOME:-$WORKSPACE_DIR/cache/hf}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$WORKSPACE_DIR/cache/xdg}"
 export PYTHONPATH="$SGLANG_DIR/python${PYTHONPATH:+:$PYTHONPATH}"
 export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
 export SGLANG_OPT_USE_TOPK_V2=false SGLANG_TIMEOUT_KEEP_ALIVE=900

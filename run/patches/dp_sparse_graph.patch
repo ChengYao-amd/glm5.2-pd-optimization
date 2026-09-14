@@ -1,0 +1,14 @@
+--- a/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py
++++ b/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py
+@@ -556,6 +556,11 @@
+         the sparse (full indexer) graph. Returns None when dual-graph is off."""
+         if not getattr(self, "dsa_dual_graph", False):
+             return None
++        # DP attention ranks can have different local lengths (or be idle).
++        # They must replay the same collective-bearing graph variant. Sparse
++        # is valid for every length and requires no device-to-host dispatch.
++        if self.model_runner.server_args.enable_dp_attention:
++            return "sparse"
+         seq_lens_cpu = getattr(forward_batch, "seq_lens_cpu", None)
+         if seq_lens_cpu is not None and seq_lens_cpu.numel() > 0:
+             # Host-side mirror (maintained incrementally for plain decode) — no

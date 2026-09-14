@@ -1,10 +1,12 @@
 # hold a node
 
 ACCOUNT="amd-oai"
-# ACCOUNT="amd-agentx-2"
+# ACCOUNT="amd-agentx-3"
+# ACCOUNT="amd-primus"
 
 QOS="amd-oai-qos"
-# QOS="amd-agentx-2-qos"
+# QOS="amd-agentx-3-qos"
+# QOS="amd-primus-qos"
 
 PARTITION="amd-spur"
 
@@ -12,7 +14,4 @@ sbatch -A $ACCOUNT -p $PARTITION --gres=gpu:8 --qos=$QOS --output=stdout.log --n
 
 # Use the following command to run a task on the held node:
 # spur exec <job_id> bash -c "<command>"
-
-
-# build image
-# spur exec 133995 bash -c "cd /shared_nfs/yaoc/work/infera-test/rocm-llm-bench && docker build -f Dockerfile.kernelforge -t rocm-llm-bench:kernelforge ."
+# or like this: srun --jobid=<job_id> --nodelist=<node_name> --overlap bash -c 'docker ps'

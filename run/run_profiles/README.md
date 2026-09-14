@@ -1,41 +1,51 @@
-# GLM-5.2 fake-decode profile
-
-在 `Dockerfile.kernelforge` 构建的容器内使用。默认配置集中在
-`/run/env.bashrc`：模型 `/shared_nfs/models/GLM-5.2-MXFP4`，GPU 0–3，
-TP4/DP4/EP1（DP attention 开启，无 EP），FP8 KV，mem-fraction 0.85，并发 32，EAGLE 5/6/topk1，
-模拟接受长度 3.61，HiCache 关闭。
+## How to run
 
 ```bash
-# 宿主机：创建容器并进入，挂载 /shared_nfs 和 run
-bash run/start_container.sh
-docker exec -it dev-container bash
+# Host: run from the repository root on an allocated GPU node.
+# Build the image if needed, then create and enter the container.
+docker build -t rocm-llm-bench:kernelforge .
+EXP=my-profile NAME=glm52-profile bash run/start_container.sh
+docker exec -it glm52-profile bash
 
-# 容器终端 1：前台启动，Ctrl-C 停止
+# Container terminal 1: start the server in the foreground; Ctrl-C stops it.
+# Stop any existing server using the same GPUs and port first.
 bash /run/run_profiles/up.sh
 
-# 容器终端 2：等 server ready 后运行
+# Container terminal 2: open another shell in the same container.
+# Each benchmark/profile invocation creates a new output directory.
 bash /run/run_profiles/bench.sh
 bash /run/run_profiles/profile.sh
 
-# 临时覆盖配置；并发/并行参数变化后需以相同配置重启 server
-OUT_DIR=/run/run_profiles/results/test1 PROFILE_STEPS=24 bash /run/run_profiles/profile.sh
+# Override profiling settings; OUT_DIR must be a fresh directory.
+# Capacity/parallelism changes require a server restart and matching client settings.
+OUT_DIR="$WORKSPACE_DIR/profile-long" PROFILE_STEPS=24 \
+  bash /run/run_profiles/profile.sh
 ```
 
-三个脚本自动加载 `env.bashrc`，末尾参数原样传给 SGLang。
-`bench.sh` 使用本地生成的原版 synthetic prompts：16 个 warmup（输出 32 tokens），
-128 个测量请求，每个输入 10000 / 输出 500 tokens。`profile.sh` 在 warmup 后
-自动采集 12 个 forward 并停止；采集从测量请求开始，包含批次爬升阶段，不等待满并发。
-结果默认写入 `results/bench-时间/` 或 `results/profile-时间/`，含 `benchmark.jsonl`；
-trace 位于 `traces/<时间>/*.trace.json.gz`，按 TP rank 分文件，可用 Perfetto 打开。
-`OUT_DIR` 指定 profile 输出时须使用新目录。模型通过完整的 `/shared_nfs` 挂载访问，
-以保留 Hugging Face snapshot 到 `blobs` 的相对软链接；外部模型路径需自行增加挂载。
+## Execution steps
 
-`up.sh` 自动向容器内 `/sglang` 应用 `fake_decode.patch`，重复启动会跳过已应用的补丁。
-补丁来自 `Infera-glm-5.2-exp` 的
-`packups/glm52_fake_tp4ep4_10k500_c16_c32.packup_20260910-055810/patches/`，
-对应 SGLang `402df1e1e453e1e85ec0f5ac4052d36598cc691a`，与当前 Dockerfile 一致。
+- `start_container.sh` mounts the repository's `run/` directory at `/run`, prepares the workspace, and applies the shared patches. `up.sh` loads `/run/env.bashrc` and launches the server without modifying its source.
 
-默认 `DEBUG_CLR_GRAPH_PACKET_CAPTURE=false`，保留 CUDA Graph，同时让 ROCm 7.2
-图内 kernel 出现在 trace 中。需要原模式性能时，用
-`DEBUG_CLR_GRAPH_PACKET_CAPTURE=true bash /run/run_profiles/up.sh` 重启后运行 `bench.sh`；
-两种模式的图回放开销不同。这里的 fake KV 和模拟接受只用于 synthetic decode 测量。
+- The default server uses `/shared_nfs/models/GLM-5.2-MXFP4`, GPUs 0-3, TP4/DP4/EP1, FP8 KV, memory fraction 0.85, and capacity 32. EAGLE uses 5 steps, 6 draft tokens, top-k 1, and simulated acceptance length 3.61. HiCache is disabled.
+
+- `bench.sh` calls `prepare_benchmark.py` to generate `prompts.json` and wait for `/health`. The helper preserves the original 160 synthetic conversation templates and cycles them when more requests are needed. The default readiness timeout is 3600 seconds; override it with `--ready-check-timeout-sec`.
+
+- The native SGLang client shuffles the seed prompts, tokenizes the human text, and repeats or truncates its token IDs to the requested input length. Defaults are 16 warmup requests with up to 32 output tokens, followed by 128 measured requests with 10000 input tokens and 500 output tokens at concurrency 32.
+
+- `profile.sh` runs the same benchmark with profiling enabled. After warmup, it captures 12 forwards by default and stops profiling automatically. Capture includes the batch ramp-up period; it does not wait for full concurrency.
+
+- Each run saves `prompts.json` and `benchmark.jsonl`. Profiles also save per-TP-rank files under `traces/<timestamp>/*.trace.json.gz`, which can be opened in Perfetto. The wrappers return the native client's exit status; they do not perform additional request/trace validation or generate `trace-summary.json`.
+
+## Other notes
+
+- `EXP` defaults to `default`. `WORKSPACE_DIR` defaults to `<repository>/workspace/<EXP>`, and results default to `$WORKSPACE_DIR/run_profiles/bench-<timestamp>` or `profile-<timestamp>`. Use separate `workspace/<EXP>/<node>` directories for multiple nodes. Compilation caches live under `$WORKSPACE_DIR/cache`; redirect console logs into the workspace when needed.
+
+- ROCm 7.2 on this cluster can crash with an NFS-backed `TMPDIR`. `start_container.sh` mounts the node-local `LOCAL_TMP_DIR` at `/tmp` and creates `$WORKSPACE_DIR/runtime-tmp` as a link to it. Access that link on the corresponding node; a local NVMe path can be supplied through `LOCAL_TMP_DIR`.
+
+- The full `/shared_nfs` mount preserves Hugging Face snapshot-to-blob symlinks. Models outside that tree need an appropriate container mount.
+
+- Patch descriptions, source versions, and application order are documented in [patches/readme.md](../patches/readme.md). Container preparation writes `$WORKSPACE_DIR/patches.log` and returns nonzero if patching fails. The patches retain EAGLE compilation, overlap scheduling, and CUDA Graph replay; the client patch adds request and SSE details to JSONL output.
+
+- `DEBUG_CLR_GRAPH_PACKET_CAPTURE=false` is the default for exposing ROCm graph kernels in traces. For normal graph packet capture behavior, stop the server and restart it with `DEBUG_CLR_GRAPH_PACKET_CAPTURE=true bash /run/run_profiles/up.sh` before benchmarking. The two modes have different replay overhead.
+
+- Some 64-head MLA calls in the default TP4/DP4 configuration exceed the pinned FlyDSL path's 8/16-head support and use its fallback. Inspect logs and traces for the actual kernels. Fake KV and simulated acceptance are for synthetic decode performance measurements, not model accuracy evaluation.

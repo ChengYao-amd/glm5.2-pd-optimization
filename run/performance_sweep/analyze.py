@@ -15,7 +15,7 @@ def save_json(path, data):
 
 def write_csv(path, rows):
     with path.open("w", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]) if rows else ["point", "concurrency"])
         writer.writeheader()
         writer.writerows(rows)
 
@@ -46,6 +46,10 @@ def summarize(data, meta):
         raise ValueError("Incomplete benchmark or client concurrency mismatch")
     if not math.isfinite(data["duration"]) or data["duration"] <= 0:
         raise ValueError("Invalid benchmark duration")
+    for key, expected in (("output_throughput", n * meta["output_len"] / data["duration"]),
+                          ("request_throughput", n / data["duration"])):
+        if not math.isclose(data[key], expected, rel_tol=1e-9, abs_tol=1e-7):
+            raise ValueError(f"Native {key} mismatch")
     requests, all_itls, all_gaps, all_sizes = [], [], [], []
     for i in range(n):
         output = data["output_lens"][i]
@@ -58,9 +62,16 @@ def summarize(data, meta):
         gaps = [x * 1000 for x in data["raw_chunk_gaps"][i]]
         sizes = data["chunk_token_counts"][i]
         if (len(gaps) != len(sizes) or sum(sizes) != len(itls)
-                or any(s <= 0 for s in sizes)
+                or len(itls) > output - 1
+                or any(type(s) is not int or s <= 0 for s in sizes)
                 or any(not math.isfinite(x) or x < 0 for x in itls + gaps)):
             raise ValueError(f"Invalid SSE chunk timing for request {i}")
+        offset = 0
+        for gap, size in zip(gaps, sizes):
+            if any(not math.isclose(itl, gap / size, rel_tol=1e-9, abs_tol=1e-7)
+                   for itl in itls[offset:offset + size]):
+                raise ValueError(f"SSE gap/token timing mismatch for request {i}")
+            offset += size
         all_itls.extend(itls)
         all_gaps.extend(gaps)
         all_sizes.extend(sizes)
@@ -99,10 +110,10 @@ def summarize(data, meta):
 def write_summary(run):
     # metrics.json is written only after the entire round passes validation.
     rows = [json.loads(p.read_text()) for p in run.glob("rounds/*/metrics.json")]
-    if not rows:
-        raise ValueError(f"No completed rounds in {run}")
     incomplete = [json.loads(p.read_text()) for p in run.glob("rounds/*/run.json")
                   if not (p.parent / "metrics.json").exists()]
+    if not rows and not incomplete:
+        raise ValueError(f"No rounds in {run}")
     incomplete_concurrencies = {r["concurrency"] for r in incomplete}
     rows.sort(key=lambda r: (r["concurrency"], r["point"]))
     groups = defaultdict(list)

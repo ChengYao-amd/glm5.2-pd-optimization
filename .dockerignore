@@ -1,0 +1,7 @@
+.git
+**/.git
+**/__pycache__
+workspace
+record
+forge_workspace
+run/*/results

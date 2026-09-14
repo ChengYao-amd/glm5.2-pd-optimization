@@ -1,0 +1,36 @@
+--- a/python/sglang/srt/speculative/eagle_disaggregation.py
++++ b/python/sglang/srt/speculative/eagle_disaggregation.py
+@@ -4,6 +4,7 @@
+ 
+ import torch
+ 
++from sglang.srt.configs.model_config import get_dsa_index_topk, is_deepseek_dsa
+ from sglang.srt.layers.attention.dsa.utils import (
+     should_remap_pd_dsa_seed_to_local_slots,
+ )
+@@ -86,6 +87,25 @@
+         if torch.any(torch.all(dsa_topk_indices < 0, dim=1)).item():
+             dsa_topk_indices = None
+ 
++    if (
++        dsa_topk_indices is None
++        and get_disagg().disaggregation_transfer_backend == "fake"
++        and is_deepseek_dsa(batch.model_config.hf_config)
++    ):
++        # Fake transfer supplies no prefill indexer output. Seed valid local
++        # physical slots from the synthetic KV allocation so new requests can
++        # use the same draft CUDA graph as the other DP ranks. Missing seeds
++        # force eager draft, whose host synchronization can deadlock overlap.
++        positions = torch.arange(
++            get_dsa_index_topk(batch.model_config.hf_config), device=batch.device
++        )
++        local_slots = batch.req_to_token_pool.req_to_token[
++            batch.req_pool_indices[:, None], positions[None, :]
++        ]
++        dsa_topk_indices = torch.where(
++            positions[None, :] < batch.seq_lens[:, None], local_slots, -1
++        ).to(torch.int32)
++
+     spec_info = EagleDraftInput(
+         topk_p=topk_p,
+         topk_index=topk_index,

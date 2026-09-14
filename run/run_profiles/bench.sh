@@ -3,17 +3,12 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/../env.bashrc"
 OUT_DIR="${OUT_DIR:-$RESULTS_DIR/bench-$(date -u +%Y%m%dT%H%M%S-%N)}"
-mkdir -p "$OUT_DIR"
+mkdir -p "$(dirname "$OUT_DIR")" "$TMPDIR"
+mkdir "$OUT_DIR" || { echo "Choose a fresh OUT_DIR: $OUT_DIR" >&2; exit 1; }
 
-# Recreate the archived synthetic prompts locally, without a dataset download.
-python3 - "$OUT_DIR/prompts.json" "$NUM_PROMPTS" <<'PY'
-import json, sys
-with open(sys.argv[1], "w") as f:
-    json.dump([{"conversations": [
-        {"from": "human", "value": f"Example {i}. Describe an integer sequence and its next value."},
-        {"from": "gpt", "value": "The next value depends on the rule."}
-    ]} for i in range(max(160, int(sys.argv[2])))], f)
-PY
+# Prepare the local dataset and wait for the server's PD warmup.
+python3 "$HERE/prepare_benchmark.py" "$OUT_DIR/prompts.json" \
+    --num-prompts "$NUM_PROMPTS" "$@"
 
 exec python3 -m sglang.benchmark.serving \
     --backend sglang --host 127.0.0.1 --port "$PORT" \

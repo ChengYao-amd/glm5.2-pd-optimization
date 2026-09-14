@@ -1,5 +1,5 @@
---- serving.py
-+++ bench_with_details.py
+--- a/python/sglang/benchmark/serving.py
++++ b/python/sglang/benchmark/serving.py
 @@ -102,6 +102,8 @@
      latency: float = 0.0
      ttft: float = 0.0  # Time to first token
