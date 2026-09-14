@@ -1,0 +1,69 @@
+--- a/python/sglang/srt/speculative/eagle_disaggregation.py
++++ b/python/sglang/srt/speculative/eagle_disaggregation.py
+@@ -9,7 +9,7 @@
+ )
+ from sglang.srt.managers.overlap_utils import RelayPayload
+ from sglang.srt.model_executor.forward_batch_info import CaptureHiddenMode
+-from sglang.srt.runtime_context import get_spec
++from sglang.srt.runtime_context import get_disagg, get_spec
+ from sglang.srt.speculative.eagle_info import EagleDraftInput
+ 
+ if TYPE_CHECKING:
+@@ -94,6 +94,20 @@
+         bonus_tokens=last_tokens_tensor,
+         dsa_topk_indices=dsa_topk_indices,
+     )
++    # Fake transfer has no prefill proposal distribution. Seed a valid point
++    # mass on its supplied dummy draft token, only for synthetic benchmarks.
++    # Keep real transfers unchanged: their proposal must come from real prefill.
++    if (
++        get_disagg().disaggregation_transfer_backend == "fake"
++        and spec.speculative_use_rejection_sampling
++    ):
++        spec_info.draft_probs = torch.zeros(
++            (len(batch.reqs), batch.model_config.vocab_size),
++            dtype=torch.float32,
++            device=batch.device,
++        )
++        spec_info.draft_probs.scatter_(1, topk_index[:, :1], 1.0)
++        spec_info.topk_p = torch.ones_like(topk_p)
+     spec_info.capture_hidden_mode = CaptureHiddenMode.LAST
+ 
+     if batch.enable_overlap:
+--- a/python/sglang/srt/mem_cache/kv_cache_configurator.py
++++ b/python/sglang/srt/mem_cache/kv_cache_configurator.py
+@@ -97,7 +97,15 @@
+         not memory_config.enable_hisparse
+         and not is_draft_worker
+         and not memory_config.enable_hierarchical_cache
+-        and get_disagg().disaggregation_mode == "null"
++        and (
++            get_disagg().disaggregation_mode == "null"
++            # Fake decode transfers no KV buffers, so it can use the same
++            # shared-topk index elision as mix. Real PD keeps its wire layout.
++            or (
++                get_disagg().disaggregation_mode == "decode"
++                and get_disagg().disaggregation_transfer_backend == "fake"
++            )
++        )
+     )
+ 
+ 
+--- a/python/sglang/srt/layers/attention/dsa/utils.py
++++ b/python/sglang/srt/layers/attention/dsa/utils.py
+@@ -219,7 +219,14 @@
+         get_disagg().disaggregation_mode != "null" and seed_dsa_topk_from_draft_extend
+     )
+     return envs.SGLANG_DSA_FUSE_TOPK.get() and (
+-        not pd_index_share_seed or should_remap_pd_dsa_seed_to_local_slots()
++        not pd_index_share_seed
++        or should_remap_pd_dsa_seed_to_local_slots()
++        # Fake handoff supplies no remote logical seed. Keep producer/consumer
++        # in the local physical-slot domain, as in the aggregated worker.
++        or (
++            get_disagg().disaggregation_mode == "decode"
++            and get_disagg().disaggregation_transfer_backend == "fake"
++        )
+     )
+ 
+ 
