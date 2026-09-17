@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "source_container": "kernel-analyze-poc-168",
+  "source_node": "crsuse2-m2m-168",
+  "source_revision": "402df1e1e453e1e85ec0f5ac4052d36598cc691a",
+  "sources": [
+    {
+      "path": "/sglang/python/sglang/kernels/ops/memory/memcpy_triton.py",
+      "snapshot": "source/memcpy_triton.py",
+      "sha256": "a81f299bb4186f9cae247cb3f5c97c8554e9ec7f248aa34266156964ca8a939f",
+      "locator": "complete file; kernel.py starts with these original bytes"
+    },
+    {
+      "path": "/sglang/python/sglang/srt/layers/dp_attention.py",
+      "snapshot": "source/dp_attention.py",
+      "sha256": "fc5e2b47c2f33d7f48135dadeb4cf11fbf672180993abeae238c3f5fc1f760a1",
+      "locator": "_dp_gather_via_all_reduce lines 454-479 before collective; dp_scatter lines 813-835"
+    }
+  ],
+  "baseline_kernel_sha256": "d12c75ebb046ad7a949de00036eebeea7afc95320a54a3f0e2a8ccd6ec73b084",
+  "baseline_description": "Original PyTorch Tensor.fill_(0), then exact SGLang memcpy_triton at BLOCK_SIZE=8192. No fusion, zero elision, block tuning, or collective/norm work.",
+  "abi": "BF16 contiguous distinct tensors; device int64 scalar offset and valid rows. gather/scatter mutate output only and return None.",
+  "scope": "single GPU local staging component extracted from residual_norm_quant_chain_001, supported by graph_fill_copy_001; no complete four-rank chain validation"
+}

@@ -1,0 +1,13 @@
+--- a/src/kernel_agents/orchestrator/analysis_session.py
++++ b/src/kernel_agents/orchestrator/analysis_session.py
+@@ -12,7 +12,9 @@
+ 
+ 
+ SESSION_SCHEMA_VERSION = 2
+-MAX_ANALYSIS_SESSION_ATTEMPTS = 2
++MAX_ANALYSIS_SESSION_ATTEMPTS = int(os.environ.get("FORGE_ANALYSIS_MAX_ATTEMPTS", "2"))
++if MAX_ANALYSIS_SESSION_ATTEMPTS not in (2, 3):
++    raise ValueError("FORGE_ANALYSIS_MAX_ATTEMPTS must be 2 or 3")
+ 
+ 
+ class AnalysisAttemptLimitError(RuntimeError):

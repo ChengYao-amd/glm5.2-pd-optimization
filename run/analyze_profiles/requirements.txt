@@ -1,0 +1,4 @@
+openai-codex==0.144.4
+ijson>=3.3
+PyYAML>=6
+jsonschema>=4

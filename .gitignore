@@ -2,3 +2,4 @@
 /forge_workspace/
 *.log
 .record/
+*_bak

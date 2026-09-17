@@ -5,8 +5,8 @@ export WORKSPACE_DIR="${WORKSPACE_DIR:-$(cd "$RUN_DIR/.." && pwd)/workspace/$EXP
 export MODEL_PATH="${MODEL_PATH:-/shared_nfs/models/GLM-5.2-MXFP4}"
 export SGLANG_DIR="${SGLANG_DIR:-/sglang}"
 export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0,1,2,3}"
-export TP="${TP:-4}" EP="${EP:-1}" DP="${DP:-4}"
-export PORT="${PORT:-31832}" CONC="${CONC:-32}"
+export TP="${TP:-8}" EP="${EP:-1}" DP="${DP:-8}"
+export PORT="${PORT:-31832}" CONC="${CONC:-128}"
 export MEM_FRACTION="${MEM_FRACTION:-0.85}" KV_CACHE_DTYPE="${KV_CACHE_DTYPE:-fp8_e4m3}"
 export SPEC_STEPS="${SPEC_STEPS:-5}" SPEC_DRAFT="${SPEC_DRAFT:-6}" SPEC_TOPK="${SPEC_TOPK:-1}"
 export ACC_LEN="${ACC_LEN:-3.61}"
@@ -33,4 +33,6 @@ export SGLANG_SIMULATE_ACC_METHOD=match-expected SGLANG_SIMULATE_ACC_TOKEN_MODE=
 
 # ROCm 7.2 needs literal false to expose graph kernels; graphs remain enabled.
 export DEBUG_CLR_GRAPH_PACKET_CAPTURE="${DEBUG_CLR_GRAPH_PACKET_CAPTURE:-false}"
-export SGLANG_PROFILE_V2=0 SGLANG_PROFILE_WITH_STACK=false SGLANG_PROFILE_RECORD_SHAPES=false
+export SGLANG_PROFILE_V2="${SGLANG_PROFILE_V2:-0}"
+export SGLANG_PROFILE_WITH_STACK="${SGLANG_PROFILE_WITH_STACK:-false}"
+export SGLANG_PROFILE_RECORD_SHAPES="${SGLANG_PROFILE_RECORD_SHAPES:-false}"

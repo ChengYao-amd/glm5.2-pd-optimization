@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "task_id": "residual_rmsnorm_001",
+  "parent_task_id": "residual_norm_quant_chain_001",
+  "scope": "Single-GPU residual-add RMSNorm component only; excludes DP staging, collectives, no-residual branches, and the full 78-layer boundary sequence.",
+  "dtype": "bfloat16",
+  "hidden": 6144,
+  "epsilon": 0.00001,
+  "seed": 20260914,
+  "benchmark_calls_per_graph": 128,
+  "numerics": {
+    "sum": "FP32(x) + FP32(residual), without BF16 rounding before normalization",
+    "normalized_output": "BF16(sum * rsqrt(mean(sum**2) + epsilon) * FP32(weight))",
+    "residual_output": "BF16(sum)",
+    "gemma_norm": false,
+    "fuse_quant": false,
+    "normalized_rtol": 0.008,
+    "normalized_atol": 0.000002,
+    "min_snr_db": 60.0,
+    "residual_exact": true
+  },
+  "scored_cases": [
+    {"id": "residual_rmsnorm_48x6144", "rows": 48, "mode": "random", "weight": 1.0, "source": "025 TARGET_VERIFY bs=8 local activation shape; deterministic synthetic tensor values"}
+  ],
+  "correctness_only": [
+    {"id": "zeros", "rows": 48, "mode": "zeros"},
+    {"id": "large", "rows": 48, "mode": "large"},
+    {"id": "small", "rows": 48, "mode": "small"},
+    {"id": "cancellation", "rows": 48, "mode": "cancellation"},
+    {"id": "rounding_sensitive", "rows": 48, "mode": "rounding_sensitive"},
+    {"id": "signed_weight", "rows": 48, "mode": "signed_weight"},
+    {"id": "tail_1", "rows": 1, "mode": "random"},
+    {"id": "tail_47", "rows": 47, "mode": "random"},
+    {"id": "tail_49", "rows": 49, "mode": "random"},
+    {"id": "empty_0", "rows": 0, "mode": "random"}
+  ],
+  "profile_case": "residual_rmsnorm_48x6144",
+  "workload_frequency": null,
+  "family_share_is_not_component_share": true
+}

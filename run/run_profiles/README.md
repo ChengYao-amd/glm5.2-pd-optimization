@@ -20,6 +20,10 @@ bash /run/run_profiles/profile.sh
 # Capacity/parallelism changes require a server restart and matching client settings.
 OUT_DIR="$WORKSPACE_DIR/profile-long" PROFILE_STEPS=24 \
   bash /run/run_profiles/profile.sh
+
+# Diagnostic capture: restart the dedicated server with these flags, then profile.
+SGLANG_PROFILE_WITH_STACK=true SGLANG_PROFILE_RECORD_SHAPES=true \
+  bash /run/run_profiles/up.sh
 ```
 
 ## Execution steps
@@ -47,5 +51,7 @@ OUT_DIR="$WORKSPACE_DIR/profile-long" PROFILE_STEPS=24 \
 - Patch descriptions, source versions, and application order are documented in [patches/readme.md](../patches/readme.md). Container preparation writes `$WORKSPACE_DIR/patches.log` and returns nonzero if patching fails. The patches retain EAGLE compilation, overlap scheduling, and CUDA Graph replay; the client patch adds request and SSE details to JSONL output.
 
 - `DEBUG_CLR_GRAPH_PACKET_CAPTURE=false` is the default for exposing ROCm graph kernels in traces. For normal graph packet capture behavior, stop the server and restart it with `DEBUG_CLR_GRAPH_PACKET_CAPTURE=true bash /run/run_profiles/up.sh` before benchmarking. The two modes have different replay overhead.
+
+- Shape/stack recording defaults to false and can be overridden when launching the server. Treat that trace as diagnostic: instrumentation changes timing, and graph replay alone does not reconstruct every Python callsite or input shape inside the graph.
 
 - Some 64-head MLA calls in the default TP4/DP4 configuration exceed the pinned FlyDSL path's 8/16-head support and use its fallback. Inspect logs and traces for the actual kernels. Fake KV and simulated acceptance are for synthetic decode performance measurements, not model accuracy evaluation.

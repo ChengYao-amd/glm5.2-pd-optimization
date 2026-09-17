@@ -1,0 +1,124 @@
+--- a/src/forge_llm/agent_backends/base.py
++++ b/src/forge_llm/agent_backends/base.py
+@@ -203,6 +203,9 @@
+     # Exact protected measurement paths that are not necessarily the primary
+     # driver. Declared last to preserve the positional API above.
+     protected_paths: list[str] = field(default_factory=list)
++    # Explicit session-owned output directories; never source or Git state.
++    # Append to preserve the positional API. Backends may support this narrowly.
++    writable_artifact_roots: list[str] = field(default_factory=list)
+ 
+     def resolved(self, runtime: AgentRuntimeConfig) -> AgentRunSpec:
+         """Fill omitted per-run values from the selected provider runtime."""
+--- a/src/forge_llm/agent_backends/codex.py
++++ b/src/forge_llm/agent_backends/codex.py
+@@ -161,6 +161,7 @@
+         self.head = ""
+         self.branch = ""
+         self.target_paths: set[Path] = set()
++        self.writable_artifact_roots: set[Path] = set()
+         self.driver_path: Path | None = None
+         self.snapshots: dict[Path, tuple[str, bytes, int]] = {}
+         self.target_snapshots: dict[Path, tuple[bool, bytes, int]] = {}
+@@ -202,6 +203,7 @@
+             and not spec.read_only_resume
+             and not spec.target_files
+             and not spec.driver_script
++            and not spec.writable_artifact_roots
+             and policy is not None
+             and not policy.write
+             and not policy.shell
+@@ -218,8 +220,49 @@
+             path = Path(self.spec.cwd) / path
+         return path.resolve()
+ 
++    def _prepare_artifact_roots(self) -> None:
++        """Authorize only dedicated output directories below this session cwd."""
++        if not self.spec.writable_artifact_roots:
++            return
++        if not self.spec.writable or self.spec.read_only_resume:
++            raise CodexSafetyError("Writable artifact roots require a writable session")
++        cwd = Path(self.spec.cwd).resolve()
++        tracked = [self.root / p for p in _nul_paths(_git_output(self.root, "ls-files", "-z"))]
++        for value in self.spec.writable_artifact_roots:
++            path = self._resolve_path(value)
++            if (path == self.root or not path.is_relative_to(self.root)
++                    or not path.is_relative_to(cwd)
++                    or ".git" in path.relative_to(self.root).parts
++                    or not path.is_dir()):
++                raise CodexSafetyError(f"Invalid writable artifact root: {path}")
++            if any(p.resolve().is_relative_to(path) for p in tracked):
++                raise CodexSafetyError(f"Writable artifact root contains tracked source: {path}")
++            self.writable_artifact_roots.add(path)
++
++    def _is_writable_artifact(self, path: str | Path) -> bool:
++        """Exempt declared output files without weakening explicit protection."""
++        if not self.writable_artifact_roots:
++            return False
++        raw = Path(path)
++        if not raw.is_absolute():
++            raw = self.root / raw
++        absolute = Path(os.path.abspath(raw))
++        resolved = absolute.resolve()
++        exact = {self._resolve_path(p) for p in self.spec.protected_paths if p}
++        if self.driver_path is not None:
++            exact.add(self.driver_path)
++        if (not absolute.is_relative_to(self.root)
++                or resolved in exact or absolute.is_symlink()):
++            return False
++        if ".git" in absolute.relative_to(self.root).parts:
++            return False
++        return any(absolute.is_relative_to(root) and resolved.is_relative_to(root)
++                   for root in self.writable_artifact_roots)
++
+     def _is_protected(self, relative: str) -> bool:
+         """Return whether a repository path belongs to the measurement surface."""
++        if self._is_writable_artifact(relative):
++            return False
+         exact_paths = list(self.spec.protected_paths)
+         if self.driver_path is not None:
+             exact_paths.append(str(self.driver_path))
+@@ -237,13 +280,14 @@
+         if self.driver_path is not None:
+             exact_paths.append(str(self.driver_path))
+         try:
+-            return set(
+-                protected_path_inventory(
++            return {
++                path for path in protected_path_inventory(
+                     self.root,
+                     exact_paths=exact_paths,
+                     extra_globs=self.spec.protected_globs,
+                 )
+-            )
++                if not self._is_writable_artifact(path)
++            }
+         except OSError as error:
+             raise CodexSafetyError(
+                 f"Could not inventory protected workspace paths: {error}",
+@@ -268,6 +312,7 @@
+         self.target_paths = {self._resolve_path(path) for path in self.spec.target_files if path}
+         if self.spec.driver_script:
+             self.driver_path = self._resolve_path(self.spec.driver_script)
++        self._prepare_artifact_roots()
+ 
+         unstaged, staged, untracked = self._current_changes()
+         if self.spec.read_only_resume:
+@@ -346,6 +391,7 @@
+                 "-z",
+             )
+         )
++        untracked = [path for path in untracked if not self._is_writable_artifact(path)]
+         return unstaged, staged, untracked
+ 
+     @staticmethod
+--- a/src/kernel_agents/orchestrator/analysis.py
++++ b/src/kernel_agents/orchestrator/analysis.py
+@@ -1481,6 +1481,7 @@
+                         user_prompt=user_prompt,
+                         cwd=str(work_root),
+                         writable=True,
++                        writable_artifact_roots=[str(work_root)],
+                         timeout_sec=timeout_sec,
+                         reasoning_effort="high",
+                         additional_directories=[

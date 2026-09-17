@@ -1,0 +1,133 @@
+{
+  "aiter_commit": "2c71811b32c8ce2e1266aedaec199df7d90f597d",
+  "aiter_git_dirty": "",
+  "aiter_source_sha256": {
+    "aiter/ops/rmsnorm.py": "01851e2a684cb1e0365ad9c5df44450cf05f0bce9a8e778e9327d105ac4ef086",
+    "csrc/kernels/rmsnorm_quant_kernels.cu": "43a2174a506431f4776a76ccc81e6b6e847a25998be491d670aa17f89a30c522",
+    "csrc/pybind/rmsnorm_quant_pybind.cu": "4807312a30ef96cbdd1fad52d20c2077eca94c799bc12c217cb4d42320bf7212"
+  },
+  "allocation": 136661,
+  "architecture": "gfx950:sramecc+:xnack-",
+  "benchmark": {
+    "calls_per_graph": 128,
+    "case_id": "residual_rmsnorm_48x6144",
+    "interpretation": "Per-invocation GPU event time across 128 calls captured in a graph on repeated fixed tensors. Not parent-family or end-to-end performance.",
+    "iters": 30,
+    "max_ms": 0.003591289045289159,
+    "mean_ms": 0.0032548447889793252,
+    "median_ms": 0.0032465937547385693,
+    "min_ms": 0.0028915938455611467,
+    "mode": "cudagraph",
+    "repeat": 3,
+    "repeat_medians_ms": [
+      0.003130656201392412,
+      0.0033272186992689967,
+      0.0033162812469527125
+    ],
+    "warmup": 10
+  },
+  "container": "forge-poc-219",
+  "correctness": {
+    "allclose": true,
+    "cases": 11,
+    "inputs_unchanged": true,
+    "min_snr_db": 94.092662,
+    "nonempty_graph_cases": 10,
+    "output_guards_unchanged": true,
+    "residual_exact": true
+  },
+  "environment": {
+    "AITER_JIT_DIR": "/tmp/forge-norm-agent/aiter",
+    "DEBUG_CLR_GRAPH_PACKET_CAPTURE": "false",
+    "PYTHONPATH": "/aiter:/KernelForge/src"
+  },
+  "gpu": "AMD Instinct MI355X",
+  "loaded_module": {
+    "path": "/tmp/forge-norm-agent/aiter/module_rmsnorm_quant.so",
+    "sha256": "570fcd382cb6d2ff938919bda606146b2f154e6fec564f93d6ce55daa3937410"
+  },
+  "measurement_sha256": {
+    "cases.json": "34ee877ee05c9b346a7e048c6f575e26726f9c94bd1ff50b50884a1f5ca80bb3",
+    "driver.py": "dea5f13941748b014c5f8db352772602f89714b16b87c3c637dbe37d14d54849",
+    "graph_harness.py": "310c8aae80845a7fe01e742f5f3bcd22c165d0e4bb6915cb5e843850f24d8c8a",
+    "kernel.py": "8a1ba80508770df7386056da479f153d3c7544747e1ad986c04f410ec7f78222",
+    "reference.py": "24d47a67cf2c9127c73591a1b29741238752713f4eab3523840b9acf33480096"
+  },
+  "negative_checks": {
+    "bf16_sum_before_norm": {
+      "allclose": false,
+      "elementwise_allclose_alone_would_pass": true,
+      "exit_code": 1,
+      "worst_snr_db": 51.015676
+    },
+    "empty_graph": {
+      "exit_code": 1,
+      "message": "graph replay failed dirty-output verification"
+    }
+  },
+  "node": "crsuse2-m2m-219",
+  "parent_task_id": "residual_norm_quant_chain_001",
+  "profile": {
+    "capture_env": "false",
+    "final_three_dispatches_target_only": true,
+    "kernel_counts": {
+      "_ZN5aiter24add_rmsnorm_quant_kernelIDF16bDF16bLi256ELi24ELb1ELb0ELb1ELi1EEEvPT0_PT_PfS4_S4_S4_dbiiiiiiibb": 13,
+      "__amd_rocclr_copyBuffer": 1,
+      "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)": 2
+    },
+    "non_target_initialization": "ROCm copyBuffer and Torch graph int64 RNG-state initialization fills; no oracle/correctness operations",
+    "target_dispatch_count": 13,
+    "target_kernel": "_ZN5aiter24add_rmsnorm_quant_kernelIDF16bDF16bLi256ELi24ELb1ELb0ELb1ELi1EEEvPT0_PT_PfS4_S4_S4_dbiiiiiiibb",
+    "target_workgroups": 48,
+    "trace_file": "baseline_profile_kernel_trace.csv",
+    "workgroup_size": 256
+  },
+  "schema_version": 1,
+  "scope": "single GPU residual-add RMSNorm component only; excludes DP staging, collectives, no-residual branches and complete layer sequence",
+  "status": "gpu_preflight_passed",
+  "task_id": "residual_rmsnorm_001",
+  "torch": "2.9.1+rocm7.2.0.git7e1940d4",
+  "upstream_preflight": {
+    "bench_ok": true,
+    "correctness_ok": true,
+    "details": {
+      "bench": {
+        "case_count": 1,
+        "expected_case_count": 1,
+        "median_ms": 0.0032,
+        "message": "BENCH: median=0.0032 ms",
+        "missing_cases": [],
+        "seconds": 6.165,
+        "success": true,
+        "undeclared_cases": []
+      },
+      "correctness": {
+        "allclose": true,
+        "max_diff": null,
+        "message": "PASS: SNR=94.09 dB (threshold=60)",
+        "outcome": "pass",
+        "passed": true,
+        "seconds": 6.295,
+        "snr_db": 94.092662
+      },
+      "graph": {
+        "replays": 27,
+        "required": 5,
+        "seconds": 6.959
+      },
+      "profile": {
+        "contract": "verified",
+        "ok": true,
+        "seconds": 5.981
+      }
+    },
+    "diagnostics": {},
+    "duration_sec": 25.402,
+    "graph_ok": true,
+    "ok": true,
+    "profile_ok": true,
+    "reasons": []
+  },
+  "validated_utc": "2026-09-14",
+  "visible_device": 0
+}

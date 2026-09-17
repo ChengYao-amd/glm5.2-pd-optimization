@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["task_id", "description", "operation", "dtype", "gpu_target", "backends", "shapes", "kernels_to_review", "constraints", "validation_gates", "priority", "status", "x-handoff"],
+  "properties": {
+    "task_id": {"type": "string", "pattern": "^[a-zA-Z0-9_-]+$"},
+    "description": {"type": "string", "minLength": 1},
+    "operation": {"type": "string", "minLength": 1},
+    "dtype": {"type": "string", "minLength": 1},
+    "gpu_target": {"type": "string", "pattern": "^gfx[0-9a-f]+$"},
+    "backends": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "shapes": {"type": "object", "required": ["primary", "validation"], "properties": {"primary": {"type": "object"}, "validation": {"type": "array"}}},
+    "kernels_to_review": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["kernel", "source_path", "bottleneck_hypothesis", "tunable_surfaces"],
+        "properties": {
+          "kernel": {"type": "string", "minLength": 1},
+          "source_path": {"type": ["string", "null"]},
+          "bottleneck_hypothesis": {"type": "string", "minLength": 1},
+          "tunable_surfaces": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "constraints": {"type": "array", "items": {"type": "string"}},
+    "validation_gates": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "priority": {"enum": ["P0", "P1", "P2"]},
+    "status": {"const": "pending"},
+    "x-handoff": {
+      "type": "object",
+      "required": ["schema_version", "kind", "readiness", "driver_owner", "workload", "inputs", "measurements", "roofline", "source", "evidence", "missing_information"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "kind": {"const": "analysis"},
+        "readiness": {"enum": ["ready_for_handoff", "needs_evidence", "not_recommended"]},
+        "driver_owner": {"const": "kernelforge"},
+        "workload": {"type": "object"},
+        "source": {"type": ["object", "null"]},
+        "inputs": {
+          "type": "array", "items": {
+            "type": "object", "required": ["name", "knowledge", "spec", "evidence_refs"],
+            "properties": {
+              "name": {"type": "string"},
+              "knowledge": {"enum": ["observed", "derived", "unknown"]},
+              "spec": {"type": "object"},
+              "evidence_refs": {"$ref": "#/$defs/refs"}
+            }
+          }
+        },
+        "measurements": {
+          "type": "array", "items": {
+            "type": "object", "required": ["name", "value", "unit", "scope", "evidence_refs"],
+            "properties": {
+              "name": {"type": "string"}, "value": {"type": "number", "minimum": 0},
+              "unit": {"enum": ["us", "ms", "s", "count", "percent", "bytes", "flops", "GB/s", "TFLOP/s"]},
+              "scope": {"type": "string", "minLength": 1},
+              "evidence_refs": {"$ref": "#/$defs/refs"}
+            }
+          }
+        },
+        "roofline": {
+          "type": "object", "required": ["status", "explanation", "evidence_refs"],
+          "properties": {
+            "status": {"enum": ["measured", "estimated", "unavailable"]},
+            "explanation": {"type": "string", "minLength": 1},
+            "evidence_refs": {"$ref": "#/$defs/refs"}
+          }
+        },
+        "evidence": {
+          "type": "array", "items": {
+            "type": "object", "required": ["id", "path", "locator"],
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "path": {"type": "string", "minLength": 1},
+              "locator": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "missing_information": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "$defs": {"refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}}
+}

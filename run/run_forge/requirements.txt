@@ -1,0 +1,6 @@
+PyYAML>=6
+jsonschema>=4
+tomli>=2; python_version < "3.11"
+# KernelForge and the GPU/toolchain dependencies are supplied by the image.
+# Its codex provider uses the same pinned SDK as the analysis runner.
+openai-codex==0.144.4

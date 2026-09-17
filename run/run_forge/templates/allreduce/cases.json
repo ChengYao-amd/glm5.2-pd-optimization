@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "workload": "glm5.2_tp4_bf16_allreduce",
+  "world_size": 4,
+  "shape": [
+    192,
+    6144
+  ],
+  "dtype": "bfloat16",
+  "payload_bytes_per_rank": 2359296,
+  "seed": 20260914,
+  "semantics": {
+    "operation": "SUM",
+    "accumulator": "float32",
+    "output": "bfloat16",
+    "aliasing": "out_of_place",
+    "input_preserved": true,
+    "is_broadcast_reg_outptr": false,
+    "capture": "aiter.dist.parallel_state.graph_capture with registered input IPC buffers"
+  },
+  "correctness": {
+    "snr_threshold_db": 60.0,
+    "rtol": 0.0078125,
+    "atol": 1.52587890625e-05,
+    "modes": [
+      "nominal",
+      "zeros",
+      "cancellation",
+      "large_small"
+    ],
+    "graph_replays": 8,
+    "calibration": "2026-09-14 crsuse2-m2m-025, forge-poc-025, original /aiter: all three cases and all four ranks were exact (SNR cap 200 dB, max_diff 0), with 80 checks per case per rank. Gate allows FP32 accumulation reordering: SNR 60 dB plus one BF16 ULP relative tolerance and 2^-16 absolute tolerance. Exact input preservation, aliasing, gather placement, zero output and determinism remain mandatory. Every prepared source snapshot must rerun this calibration gate."
+  },
+  "scored_cases": [
+    {
+      "distribution": "rank owns contiguous rows [rank*48:(rank+1)*48]; all other rows exactly zero",
+      "scored": true,
+      "weight": 1.0,
+      "id": "gather_192x6144"
+    },
+    {
+      "distribution": "synthetic reproducible rank-distinct normal values; scale=(rank+1)/4; every rank contributes all rows",
+      "scored": true,
+      "weight": 1.0,
+      "id": "moe_out_192x6144"
+    },
+    {
+      "distribution": "synthetic reproducible rank-distinct uniform values in [-2,2] with rank offset (rank-1.5)/8; every rank contributes all rows",
+      "scored": true,
+      "weight": 1.0,
+      "id": "dense_out_192x6144"
+    }
+  ]
+}

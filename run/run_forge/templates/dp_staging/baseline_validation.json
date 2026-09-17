@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "timestamp_utc": "2026-09-14T12:43:11.488704+00:00",
+  "node": "crsuse2-m2m-168",
+  "container": "forge-poc-168",
+  "visible_device": "3",
+  "scope": "single_gpu_local_staging_without_norm_or_collectives",
+  "torch_version": "2.9.1+rocm7.2.0.git7e1940d4",
+  "triton_version": "3.7.0",
+  "gpu": "AMD Instinct MI355X",
+  "baseline_original_fill_then_memcpy": true,
+  "first_benchmark_samples_ms": [
+    0.564687665,
+    0.565533066,
+    0.564671707
+  ],
+  "files": {
+    "README.md": "712745fead0be6798cba85a4dde410db8b6bb1b3f620dfa18224a6b4b9420366",
+    "cases.json": "aac35e58f79a1b6b1669c623797ef42e44cb0096d1c73ad616804379f25987e8",
+    "driver.py": "559904be2c2c3aedc4a9147dbd3ba9861c3e3f12b4e74bc9c09c497339671997",
+    "graph_harness.py": "b239392543b47c469b7b6d008ab7bc2fc7096ad27f5ca62a636d27465fc3d463",
+    "kernel.py": "d12c75ebb046ad7a949de00036eebeea7afc95320a54a3f0e2a8ccd6ec73b084",
+    "reference.py": "96f5f975924dd4d625283952ac678b604645d7437fba44ffb3cc96264ecef28a",
+    "source/dp_attention.py": "fc5e2b47c2f33d7f48135dadeb4cf11fbf672180993abeae238c3f5fc1f760a1",
+    "source/memcpy_triton.py": "a81f299bb4186f9cae247cb3f5c97c8554e9ec7f248aa34266156964ca8a939f",
+    "source_identity.json": "f779db7f9dae21da1f7fc3b1b632e54fef7d097145e6329c6e6c5d9eb26a0069"
+  },
+  "steps": [
+    {
+      "name": "correctness",
+      "args": [
+        "driver.py"
+      ],
+      "returncode": 0,
+      "expected_returncode": 0,
+      "passed": true,
+      "stdout": "verified_checks: 260\ncomparison: bitwise BF16, including input preservation, padding, guards, and mutable graph metadata\nscope: single GPU local staging; ranks 0..3 simulated; no collective or norm validation\nSNR: 100.00 dB\nallclose: True\n",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    },
+    {
+      "name": "benchmark",
+      "args": [
+        "driver.py",
+        "--bench-mode",
+        "--warmup",
+        "10",
+        "--iters",
+        "30",
+        "--repeat",
+        "3"
+      ],
+      "returncode": 0,
+      "expected_returncode": 0,
+      "passed": true,
+      "stdout": "# mode: cudagraph; scope: single_gpu_local_staging\nwall_ms: 0.565378126\nwall_ms: 0.566516813\nwall_ms: 0.563703473\ncase_ms: local_dp_staging_79g78s_48x6144 0.565378126\nmedian_ms: 0.565378126\n",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    },
+    {
+      "name": "gather_diagnostic",
+      "args": [
+        "driver.py",
+        "--diagnostic-case",
+        "gather_48x6144",
+        "--warmup",
+        "10",
+        "--iters",
+        "30",
+        "--repeat",
+        "3"
+      ],
+      "returncode": 0,
+      "expected_returncode": 0,
+      "passed": true,
+      "stdout": "# mode: cudagraph; scope: single_gpu_local_staging\ndiagnostic_ms: gather_48x6144 0.003753917\ndiagnostic_samples_ms: [0.003774916628996531, 0.0037539166708787284, 0.003744936982790629]\n",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    },
+    {
+      "name": "scatter_diagnostic",
+      "args": [
+        "driver.py",
+        "--diagnostic-case",
+        "scatter_48x6144",
+        "--warmup",
+        "10",
+        "--iters",
+        "30",
+        "--repeat",
+        "3"
+      ],
+      "returncode": 0,
+      "expected_returncode": 0,
+      "passed": true,
+      "stdout": "# mode: cudagraph; scope: single_gpu_local_staging\ndiagnostic_ms: scatter_48x6144 0.003575603\ndiagnostic_samples_ms: [0.00357560267051061, 0.0035757693151632947, 0.0035750811298688252]\n",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    },
+    {
+      "name": "profile_default",
+      "args": [
+        "driver.py",
+        "--profile-run",
+        "--warmup",
+        "3",
+        "--iters",
+        "3"
+      ],
+      "returncode": 0,
+      "expected_returncode": 0,
+      "passed": true,
+      "stdout": "",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    },
+    {
+      "name": "profile_gather",
+      "args": [
+        "driver.py",
+        "--profile-run",
+        "--profile-case",
+        "gather_48x6144",
+        "--warmup",
+        "3",
+        "--iters",
+        "3"
+      ],
+      "returncode": 0,
+      "expected_returncode": 0,
+      "passed": true,
+      "stdout": "",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    },
+    {
+      "name": "profile_scatter",
+      "args": [
+        "driver.py",
+        "--profile-run",
+        "--profile-case",
+        "scatter_48x6144",
+        "--warmup",
+        "3",
+        "--iters",
+        "3"
+      ],
+      "returncode": 0,
+      "expected_returncode": 0,
+      "passed": true,
+      "stdout": "",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    },
+    {
+      "name": "negative_noop_gather",
+      "args": [
+        "-c",
+        "import kernel,runpy; kernel.gather=lambda *args: None; runpy.run_path(\"driver.py\",run_name=\"__main__\")"
+      ],
+      "returncode": 1,
+      "expected_returncode": 1,
+      "passed": true,
+      "stdout": "error: RuntimeError: eager mismatch: rows=48 rank=0 valid=0 variant=0\nSNR: 0.00 dB\nallclose: False\n",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    },
+    {
+      "name": "negative_missing_scatter_zero",
+      "args": [
+        "-c",
+        "import kernel,runpy; kernel.scatter=lambda dst,src,offset,size: kernel.memcpy_triton(dst,src,0,offset,size,True); runpy.run_path(\"driver.py\",run_name=\"__main__\")"
+      ],
+      "returncode": 1,
+      "expected_returncode": 1,
+      "passed": true,
+      "stdout": "error: RuntimeError: eager mismatch: rows=48 rank=0 valid=0 variant=0\nSNR: 0.00 dB\nallclose: False\n",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    },
+    {
+      "name": "negative_noop_graph",
+      "args": [
+        "-c",
+        "import torch,runpy,sys; torch.cuda.CUDAGraph.replay=lambda self: None; sys.argv=[\"driver.py\",\"--bench-mode\",\"--warmup\",\"1\",\"--iters\",\"2\",\"--repeat\",\"1\"]; runpy.run_path(\"driver.py\",run_name=\"__main__\")"
+      ],
+      "returncode": 1,
+      "expected_returncode": 1,
+      "passed": true,
+      "stdout": "error: RuntimeError: graph replay failed dirty-output or input-preservation verification\nSNR: 0.00 dB\nallclose: False\n",
+      "stderr": "spur: warning: raw mode unavailable (stdin is not a TTY)\n"
+    }
+  ],
+  "passed": true,
+  "earlier_unbatched_diagnostic_observation": "The initial diagnostic graph held one role invocation and GPU-event timing included CPU submission gaps. Final diagnostics capture 64 invocations per graph; only final corrected diagnostic timings are reported in steps.",
+  "upstream_graph_probe": {
+    "tool": "kernel_agents.loop.task_preparer._count_graph_replays",
+    "kernelforge_root": "/KernelForge",
+    "warmup": 2,
+    "iters": 3,
+    "required_replays": 3,
+    "observed_replays": 19,
+    "passed": true
+  },
+  "source_identity_check": {
+    "snapshots_sha256_match": true,
+    "kernel_has_byte_identical_original_memcpy_prefix": true,
+    "kernel_sha256_matches_recorded_original_baseline": true
+  }
+}

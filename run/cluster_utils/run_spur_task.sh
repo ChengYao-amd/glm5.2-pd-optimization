@@ -10,7 +10,7 @@ QOS="amd-oai-qos"
 
 PARTITION="amd-spur"
 
-sbatch -A $ACCOUNT -p $PARTITION --gres=gpu:8 --qos=$QOS --output=stdout.log --nodes=1 --error=stderr.log -t 24:00:00 --job-name=hold run/cluster_utils/sleep.sh
+sbatch -A $ACCOUNT -p $PARTITION --gres=gpu:8 --qos=$QOS --output=stdout.log --nodes=1 --error=stderr.log -t 24:00:00 --job-name=glm52-pd run/cluster_utils/sleep.sh
 
 # Use the following command to run a task on the held node:
 # spur exec <job_id> bash -c "<command>"

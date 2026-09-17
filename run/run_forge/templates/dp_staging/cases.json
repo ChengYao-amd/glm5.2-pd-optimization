@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "task_id": "dp_staging_local_001",
+  "parent_task_id": "residual_norm_quant_chain_001",
+  "supporting_task_id": "graph_fill_copy_001",
+  "scope": "single_gpu_local_staging_without_collectives_or_norm",
+  "seed": 20260914,
+  "hidden": 6144,
+  "diagnostics": [
+    {
+      "id": "gather_48x6144",
+      "scored": false,
+      "kind": "gather",
+      "local_rows": 48,
+      "global_rows": 192,
+      "rank": 0,
+      "valid_rows": 48,
+      "graph_invocations": 64
+    },
+    {
+      "id": "scatter_48x6144",
+      "scored": false,
+      "kind": "scatter",
+      "local_rows": 48,
+      "global_rows": 192,
+      "rank": 0,
+      "valid_rows": 48,
+      "graph_invocations": 64
+    }
+  ],
+  "validation": {
+    "ranks": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "layouts": [
+      {
+        "local_rows": 48,
+        "global_rows": 192,
+        "valid_rows": [
+          0,
+          1,
+          42,
+          47,
+          48
+        ]
+      },
+      {
+        "local_rows": 24,
+        "global_rows": 96,
+        "valid_rows": [
+          0,
+          1,
+          18,
+          23,
+          24
+        ]
+      }
+    ],
+    "packed_counts": [
+      [
+        48,
+        42,
+        48,
+        42
+      ],
+      [
+        24,
+        18,
+        24,
+        24
+      ]
+    ],
+    "input_variants": [
+      0,
+      1
+    ],
+    "comparison": "bitwise_bf16_including_nan_payloads_and_signed_zero",
+    "graph_metadata": "device_int64_scalars_updated_between_replays",
+    "output_buffers": "contiguous_nonaliasing_guarded_dirty_nonzero",
+    "input_preservation": true
+  },
+  "scored_cases": [
+    {
+      "id": "local_dp_staging_79g78s_48x6144",
+      "scored": true,
+      "kind": "sequence",
+      "local_rows": 48,
+      "global_rows": 192,
+      "rank": 0,
+      "valid_rows": 48,
+      "gather_calls": 79,
+      "scatter_calls": 78,
+      "weight": 1.0
+    }
+  ]
+}
